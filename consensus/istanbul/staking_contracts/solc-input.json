@@ -1,0 +1,29 @@
+{
+    "language": "Solidity",
+    "sources": {
+        "./AsDBChainStaking.sol": {
+            "urls": ["./AsDBChainStaking.sol"]
+        },
+        "./IAsDBChainStaking.sol": {
+            "urls": ["./IAsDBChainStaking.sol"]
+        },
+        "./SafeMath.sol": {
+            "urls": ["./SafeMath.sol"]
+        },
+        "./ReentrancyGuard.sol": {
+            "urls": ["./ReentrancyGuard.sol"]
+        }
+    },
+    "settings": {
+        "optimizer": {
+            "enabled": true,
+            "runs": 20000
+        },
+        "evmVersion": "istanbul",
+        "outputSelection": {
+            "*": {
+                "*": ["storageLayout"]
+            }
+        }
+    }
+}
