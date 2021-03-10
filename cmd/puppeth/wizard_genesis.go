@@ -20,6 +20,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 	"io"
 	"io/ioutil"
 	"math/big"
@@ -59,6 +61,7 @@ func (w *wizard) makeGenesis() {
 	fmt.Println("Which consensus engine to use? (default = clique)")
 	fmt.Println(" 1. Ethash - proof-of-work")
 	fmt.Println(" 2. Clique - proof-of-authority")
+	fmt.Println(" 3. IBFT - istanbul-practical-byzantine-fault-tolerance")
 
 	choice := w.read()
 	switch {
@@ -104,6 +107,49 @@ func (w *wizard) makeGenesis() {
 		for i, signer := range signers {
 			copy(genesis.ExtraData[32+i*common.AddressLength:], signer[:])
 		}
+	case choice == "" || choice == "3":
+		fmt.Println("What is policy to select proposer (default 0 - roundrobin)")
+		policy := uint64(w.readDefaultInt(0))
+		genesis.Config.Istanbul = &params.IstanbulConfig{
+			ProposerPolicy: policy,
+		}
+		// Query the tendermint block reward
+		fmt.Println()
+		fmt.Println("Specify your tendermint block reward if you want an explicit one (default = 5e+18)")
+		genesis.Config.Istanbul.BlockReward = new(big.Int).Set(w.readDefaultBigInt(big.NewInt(5e+18)))
+
+		// In the case of Tender-mint, configure the consensus parameters
+		genesis.Difficulty = big.NewInt(1)
+
+		// We also need the initial list of validators
+		fmt.Println()
+		fmt.Println("Which accounts are validators? (mandatory at least one)")
+		var validators []common.Address
+		for {
+			if address := w.readAddress(); address != nil {
+				validators = append(validators, *address)
+				continue
+			}
+			if len(validators) > 0 {
+				break
+			}
+		}
+		istanbulExtra := types.IstanbulExtra{Validators: validators}
+		fmt.Println()
+		fmt.Println("Do you want to use fixed validators? (default = no)")
+		if w.readDefaultYesNo(false) {
+			genesis.Config.Istanbul.FixedValidators = validators
+		} else if err := w.configStakingSC(genesis, validators); err != nil {
+			log.Error("Failed to config staking SC", "error", err)
+			return
+		}
+		extraData, err := rlp.EncodeToBytes(&istanbulExtra)
+		if err != nil {
+			log.Error("rlp encode got error", "error", err)
+			return
+		}
+		istanbulExtraVanity := bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity)
+		genesis.ExtraData = append(istanbulExtraVanity, extraData...)
 
 	default:
 		log.Crit("Invalid consensus engine choice", "choice", choice)
@@ -122,8 +168,8 @@ func (w *wizard) makeGenesis() {
 		break
 	}
 	fmt.Println()
-	fmt.Println("Should the precompile-addresses (0x1 .. 0xff) be pre-funded with 1 wei? (advisable yes)")
-	if w.readDefaultYesNo(true) {
+	fmt.Println("Should the precompile-addresses (0x1 .. 0xff) be pre-funded with 1 wei? (advisable no)")
+	if w.readDefaultYesNo(false) {
 		// Add a batch of precompile balances to avoid them getting deleted
 		for i := int64(0); i < 256; i++ {
 			genesis.Alloc[common.BigToAddress(big.NewInt(i))] = core.GenesisAccount{Balance: big.NewInt(1)}
