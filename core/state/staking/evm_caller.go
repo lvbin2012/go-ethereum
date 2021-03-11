@@ -139,7 +139,7 @@ func (e evmStakingCaller) CallContract(ctx context.Context, call ethereum.CallMs
 		return nil, errors.New("blockNumber is not supported")
 	}
 
-	if call.GasPrice != nil {
+	if call.GasPrice == nil {
 		call.GasPrice = big.NewInt(1)
 	}
 	if call.Gas == 0 {
