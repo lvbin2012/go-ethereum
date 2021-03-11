@@ -69,12 +69,12 @@ func (s *stateDBStakingCaller) GetValidators(stakingContractAddr common.Address)
 }
 
 func (s *stateDBStakingCaller) GetValidatorsData(stakingContractAddr common.Address, candidates []common.Address) (map[common.Address]CandidateData, error) {
-	allValidatorsDatas := make(map[common.Address]CandidateData)
+	allValidatorsData := make(map[common.Address]CandidateData)
 	for _, candidate := range candidates {
 		candidateData := s.GetCandidateData(stakingContractAddr, candidate)
-		allValidatorsDatas[candidate] = candidateData
+		allValidatorsData[candidate] = candidateData
 	}
-	return allValidatorsDatas, nil
+	return allValidatorsData, nil
 }
 
 func (s *stateDBStakingCaller) GetCandidates(stakingContractAddr common.Address) ([]common.Address, error) {
