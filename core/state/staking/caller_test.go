@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"math/big"
 	"reflect"
 	"sort"
@@ -50,7 +51,7 @@ func getCandidateDataExp(validates []common.Address, owners []common.Address, st
 	return res, nil
 }
 
-func TestCheckIndex(t *testing.T) {
+func TestCheckCaller(t *testing.T) {
 	var (
 		candidatesExp = []common.Address{
 			getRandomAddress(t),
@@ -101,53 +102,75 @@ func TestCheckIndex(t *testing.T) {
 	stateDB, err := be.Blockchain().State()
 	NoError(t, err)
 
-	caller := &stateDBStakingCaller{
+	stateDBCaller := &stateDBStakingCaller{
 		stateDB: stateDB,
 		config:  DefaultConfig,
 	}
 
 	// Check startBlock
-	startBlock := caller.GetStartBlock(scAddress)
+	startBlock := stateDBCaller.GetStartBlock(scAddress)
 	if startBlock.Cmp(startBlockExp) != 0 {
 		t.Errorf("Get startBlock error: have %v, want  %v", startBlock.String(), startBlockExp.String())
 	}
 
 	// Check Epoch
-	epoch := caller.GetEpochPeriod(scAddress)
+	epoch := stateDBCaller.GetEpochPeriod(scAddress)
 	if epoch.Cmp(epochExp) != 0 {
 		t.Errorf("Get Epoch error: have %v, want  %v", epoch.String(), epochExp.String())
 	}
 
 	// Check maxValidatorSize
-	maxValidatorSize := caller.GetMaxValidatorSize(scAddress)
+	maxValidatorSize := stateDBCaller.GetMaxValidatorSize(scAddress)
 	if maxValidatorSize.Cmp(maxValidatorSizeExp) != 0 {
 		t.Errorf("Get maxValidatorSize error: have %v, want  %v", maxValidatorSize.String(), maxValidatorSizeExp.String())
 	}
 
 	// Check minValidatorStake
-	minValidatorStake := caller.GetMinValidatorStake(scAddress)
+	minValidatorStake := stateDBCaller.GetMinValidatorStake(scAddress)
 	if minValidatorStake.Cmp(minValidatorStakeExp) != 0 {
 		t.Errorf("Get minValidatorStake error: have %v, want  %v", minValidatorStake.String(), minValidatorStakeExp.String())
 	}
 
 	// Check minVoteCap
-	minVoterCap := caller.GetMinVoterCap(scAddress)
+	minVoterCap := stateDBCaller.GetMinVoterCap(scAddress)
 	if minVoterCap.Cmp(minVoterCapExp) != 0 {
 		t.Errorf("Get minVoteCap error: have %v, want  %v", minVoterCap.String(), minVoterCapExp.String())
 	}
 
 	// check admin address
-	adminAddr := caller.GetAdmin(scAddress)
+	adminAddr := stateDBCaller.GetAdmin(scAddress)
 	if !reflect.DeepEqual(adminAddr, adminAddrExp) {
 		t.Errorf("Get admin address error: have %v, want  %v", adminAddr.String(), adminAddrExp.String())
 	}
 
 	// check  function GetValidators
+	checkValidators(stateDBCaller, scAddress, candidatesExp, "statedb_caller", t)
+
+	// check  function GetValidatorsData
+	checkValidatorsData(stateDBCaller, scAddress, validatorsDataExp, "statedb_caller", t)
+
+	evmCaller := &evmStakingCaller{
+		stateDB:      stateDB,
+		chainContext: be.Blockchain(),
+		blockNumber:  be.Blockchain().CurrentHeader().Number,
+		header:       be.Blockchain().CurrentHeader(),
+		chainConfig:  be.Blockchain().Config(),
+		vmConfig:     vm.Config{},
+	}
+
+	// check  function GetValidators
+	checkValidators(evmCaller, scAddress, candidatesExp, "evm_caller", t)
+
+	// check  function GetValidatorsData
+	checkValidatorsData(evmCaller, scAddress, validatorsDataExp, "evm_caller", t)
+}
+
+func checkValidators(caller StakingCaller, scAddress common.Address, candidatesExp []common.Address, tag string, t *testing.T) {
 	candidates, err := caller.GetValidators(scAddress)
 	NoError(t, err)
 
 	if len(candidates) != len(candidatesExp) {
-		t.Errorf("Validators length is not equal, error: have %v, want %v", len(candidates), len(candidatesExp))
+		t.Errorf("Tag:%s, Validators length is not equal, error: have %v, want %v", tag, len(candidates), len(candidatesExp))
 	}
 
 	sort.Slice(candidates, func(i, j int) bool {
@@ -158,10 +181,15 @@ func TestCheckIndex(t *testing.T) {
 	})
 
 	if !reflect.DeepEqual(candidates, candidatesExp) {
-		t.Errorf("validator check failed, error: have %v, want %v", candidates, candidatesExp)
+		t.Errorf("Tag:%s, validator check failed, error: have %v, want %v", tag,
+			candidates, candidatesExp)
 	}
+}
 
-	// check  function GetValidatorsData
+func checkValidatorsData(caller StakingCaller, scAddress common.Address, validatorsDataExp map[common.Address]CandidateData,
+	tag string, t *testing.T) {
+	candidates, err := caller.GetValidators(scAddress)
+	NoError(t, err)
 	validatorsData, err := caller.GetValidatorsData(scAddress, candidates)
 	NoError(t, err)
 	if len(validatorsData) != len(validatorsDataExp) {
