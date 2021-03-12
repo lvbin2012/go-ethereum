@@ -2389,6 +2389,11 @@ func (bc *BlockChain) maintainTxIndex(ancients uint64) {
 	}
 }
 
+// HasBadBlock returns whether the block with the hash is a bad block. dep: Istanbul
+func (bc *BlockChain) HasBadBlock(hash common.Hash) bool {
+	return rawdb.ReadBadBlock(bc.db, hash) != nil
+}
+
 // reportBlock logs a bad block error.
 func (bc *BlockChain) reportBlock(block *types.Block, receipts types.Receipts, err error) {
 	rawdb.WriteBadBlock(bc.db, block)
