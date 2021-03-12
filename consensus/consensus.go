@@ -23,6 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -124,4 +125,44 @@ type PoW interface {
 
 	// Hashrate returns the current mining hashrate of a PoW consensus engine.
 	Hashrate() float64
+}
+
+// Broadcaster defines the interface to enqueue blocks to fetcher and find peer
+type Broadcaster interface {
+	// Enqueue add a block into fetcher queue
+	Enqueue(id string, block *types.Block)
+	// FindPeers retrives peers by addresses
+	FindPeers(map[common.Address]bool) map[common.Address]Peer
+}
+
+// Peer defines the interface to communicate with peer
+type Peer interface {
+	// Send sends the message to this peer
+	Send(msgcode uint64, data interface{}) error
+
+	// SendConsensus sends the message to this p2p peer using the consensus specific devp2p subprotocol
+	SendConsensus(msgcode uint64, data interface{}) error
+}
+
+// Handler should be implemented is the consensus needs to handle and send peer's message
+type Handler interface {
+	// NewChainHead handles a new head block comes
+	NewChainHead() error
+
+	// HandleMsg handles a message from peer
+	HandleMsg(address common.Address, data p2p.Msg) (bool, error)
+
+	// SetBroadcaster sets the broadcaster to send message to peers
+	SetBroadcaster(Broadcaster)
+}
+
+// Istanbul is a consensus engine to avoid byzantine failure
+type Istanbul interface {
+	Engine
+
+	// Start starts the engine
+	Start(chain ChainHeaderReader, currentBlock func() *types.Block, hasBadBlock func(hash common.Hash) bool) error
+
+	// Stop stops the engine
+	Stop() error
 }
