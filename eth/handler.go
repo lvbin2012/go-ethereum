@@ -25,9 +25,11 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/forkid"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/fetcher"
 	"github.com/ethereum/go-ethereum/eth/protocols/eth"
@@ -530,4 +532,20 @@ func (h *handler) txBroadcastLoop() {
 			return
 		}
 	}
+}
+
+func (h *handler) FindPeers(targets map[common.Address]bool) map[common.Address]consensus.Peer {
+	peersMap := make(map[common.Address]consensus.Peer)
+	for _, p := range h.peers.Peers() {
+		pubKey := p.Node().Pubkey()
+		addr := crypto.PubkeyToAddress(*pubKey)
+		if targets[addr] {
+			peersMap[addr] = p
+		}
+	}
+	return peersMap
+}
+
+func (h *handler) Enqueue(id string, block *types.Block) {
+	h.blockFetcher.Enqueue(id, block)
 }
