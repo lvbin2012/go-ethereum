@@ -138,7 +138,7 @@ type Broadcaster interface {
 // Peer defines the interface to communicate with peer
 type Peer interface {
 	// Send sends the message to this peer
-	Send(msgcode uint64, data interface{}) error
+	Send(msgCode uint64, data interface{}) error
 }
 
 // Handler should be implemented is the consensus needs to handle and send peer's message
