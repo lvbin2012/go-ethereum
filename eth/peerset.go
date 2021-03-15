@@ -173,6 +173,18 @@ func (ps *peerSet) unregisterPeer(id string) error {
 	return nil
 }
 
+// Peer returns all registered ethPeer
+func (ps *peerSet) Peers() map[string]*ethPeer {
+	ps.lock.RLock()
+	defer ps.lock.RUnlock()
+
+	set := make(map[string]*ethPeer)
+	for id, p := range ps.peers {
+		set[id] = p
+	}
+	return set
+}
+
 // peer retrieves the registered peer with the given id.
 func (ps *peerSet) peer(id string) *ethPeer {
 	ps.lock.RLock()

@@ -541,3 +541,10 @@ func (p *Peer) RequestTxs(hashes []common.Hash) error {
 	}
 	return p2p.Send(p.rw, GetPooledTransactionsMsg, GetPooledTransactionsPacket(hashes))
 }
+
+// This was added with the origin "istanbul" implementation.
+// Send writes an RLP-encoded message with the given code.
+// data should encode as an RLP list.
+func (p *Peer) Send(msgCode uint64, data interface{}) error {
+	return p2p.Send(p.rw, msgCode, data)
+}
