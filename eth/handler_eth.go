@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/protocols/eth"
@@ -57,6 +58,13 @@ func (h *ethHandler) PeerInfo(id enode.ID) interface{} {
 // or if inbound transactions should simply be dropped.
 func (h *ethHandler) AcceptTxs() bool {
 	return atomic.LoadUint32(&h.acceptTxs) == 1
+}
+
+func (h *ethHandler) GetEngine() consensus.Engine {
+	if h.getEngine != nil {
+		return h.getEngine()
+	}
+	return nil
 }
 
 // Handle is invoked from a peer's message handler when it receives a new remote

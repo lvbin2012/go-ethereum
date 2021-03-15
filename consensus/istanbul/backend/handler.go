@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	istanbulMsg = 0x11
+	istanbulMsg = 0x20
 	NewBlockMsg = 0x07
 )
 

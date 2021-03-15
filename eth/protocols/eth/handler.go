@@ -22,8 +22,10 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -92,6 +94,9 @@ type Backend interface {
 	// the remote peer. Only packets not consumed by the protocol handler will
 	// be forwarded to the backend.
 	Handle(peer *Peer, packet Packet) error
+
+	// GetEngine return engine
+	GetEngine() consensus.Engine
 }
 
 // TxPool defines the methods needed by the protocol handler to serve transactions.
@@ -218,6 +223,18 @@ func handleMessage(backend Backend, peer *Peer) error {
 		return fmt.Errorf("%w: %v > %v", errMsgTooLarge, msg.Size, maxMessageSize)
 	}
 	defer msg.Discard()
+
+	// Istanbul handle the message
+	if engine := backend.GetEngine(); engine != nil {
+		if handler, ok := engine.(consensus.Handler); ok {
+			pubKey := peer.Node().Pubkey()
+			addr := crypto.PubkeyToAddress(*pubKey)
+			handled, err := handler.HandleMsg(addr, msg)
+			if handled {
+				return err
+			}
+		}
+	}
 
 	var handlers = eth65
 	if peer.Version() >= ETH66 {
