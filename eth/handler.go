@@ -125,10 +125,12 @@ type handler struct {
 	chainSync *chainSyncer
 	wg        sync.WaitGroup
 	peerWG    sync.WaitGroup
+
+	getEngine func() consensus.Engine
 }
 
 // newHandler returns a handler for all Ethereum chain management protocol.
-func newHandler(config *handlerConfig) (*handler, error) {
+func newHandler(config *handlerConfig, getEngine func() consensus.Engine) (*handler, error) {
 	// Create the protocol manager with the base fields
 	if config.EventMux == nil {
 		config.EventMux = new(event.TypeMux) // Nicety initialization for tests
@@ -144,6 +146,7 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		whitelist:  config.Whitelist,
 		txsyncCh:   make(chan *txsync),
 		quitSync:   make(chan struct{}),
+		getEngine:  getEngine,
 	}
 	if config.Sync == downloader.FullSync {
 		// The database seems empty as the current block is the genesis. Yet the fast

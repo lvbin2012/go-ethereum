@@ -216,7 +216,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		EventMux:   eth.eventMux,
 		Checkpoint: checkpoint,
 		Whitelist:  config.Whitelist,
-	}); err != nil {
+	}, func() consensus.Engine { return eth.engine }); err != nil {
 		return nil, err
 	}
 

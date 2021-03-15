@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -108,6 +109,7 @@ func (b *testBackend) AcceptTxs() bool {
 func (b *testBackend) Handle(*Peer, Packet) error {
 	panic("data processing tests should be done in the handler package")
 }
+func (b *testBackend) GetEngine() consensus.Engine { panic("not implemented") }
 
 // Tests that block headers can be retrieved from a remote chain based on user queries.
 func TestGetBlockHeaders64(t *testing.T) { testGetBlockHeaders(t, 64) }
