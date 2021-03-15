@@ -182,6 +182,7 @@ var (
 		utils.RPCGlobalGasCapFlag,
 		utils.RPCGlobalTxFeeCapFlag,
 		utils.AllowUnprotectedTxs,
+		utils.AllowedFutureBlockTimeFlag,
 	}
 
 	metricsFlags = []cli.Flag{
