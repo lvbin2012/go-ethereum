@@ -19,6 +19,7 @@ package types
 import (
 	"errors"
 	"io"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -37,6 +38,7 @@ var (
 )
 
 type IstanbulExtra struct {
+	Reward        *big.Int
 	Validators    []common.Address
 	Seal          []byte
 	CommittedSeal [][]byte
@@ -45,6 +47,7 @@ type IstanbulExtra struct {
 // EncodeRLP serializes ist into the Ethereum RLP format.
 func (ist *IstanbulExtra) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, []interface{}{
+		ist.Reward,
 		ist.Validators,
 		ist.Seal,
 		ist.CommittedSeal,
@@ -54,6 +57,7 @@ func (ist *IstanbulExtra) EncodeRLP(w io.Writer) error {
 // DecodeRLP implements rlp.Decoder, and load the istanbul fields from a RLP stream.
 func (ist *IstanbulExtra) DecodeRLP(s *rlp.Stream) error {
 	var istanbulExtra struct {
+		Reward        *big.Int
 		Validators    []common.Address
 		Seal          []byte
 		CommittedSeal [][]byte
@@ -61,7 +65,7 @@ func (ist *IstanbulExtra) DecodeRLP(s *rlp.Stream) error {
 	if err := s.Decode(&istanbulExtra); err != nil {
 		return err
 	}
-	ist.Validators, ist.Seal, ist.CommittedSeal = istanbulExtra.Validators, istanbulExtra.Seal, istanbulExtra.CommittedSeal
+	ist.Reward, ist.Validators, ist.Seal, ist.CommittedSeal = istanbulExtra.Reward, istanbulExtra.Validators, istanbulExtra.Seal, istanbulExtra.CommittedSeal
 	return nil
 }
 
@@ -79,6 +83,23 @@ func ExtractIstanbulExtra(h *Header) (*IstanbulExtra, error) {
 		return nil, err
 	}
 	return istanbulExtra, nil
+}
+
+func SetRewardIntoIstanbulExtra(h *Header, fees *big.Int, blockReward *big.Int) *Header {
+	newHeader := CopyHeader(h)
+	istanbulExtra, err := ExtractIstanbulExtra(newHeader)
+	if err != nil {
+		return nil
+	}
+	istanbulExtra.Reward = new(big.Int).Add(fees, blockReward)
+	payload, err := rlp.EncodeToBytes(&istanbulExtra)
+	if err != nil {
+		return nil
+	}
+
+	newHeader.Extra = append(newHeader.Extra[:IstanbulExtraVanity], payload...)
+
+	return newHeader
 }
 
 // IstanbulFilteredHeader returns a filtered header which some information (like seal, committed seals)
