@@ -120,6 +120,7 @@ func (w *wizard) makeGenesis() {
 
 		// In the case of Tender-mint, configure the consensus parameters
 		genesis.Difficulty = big.NewInt(1)
+		genesis.Mixhash = types.IstanbulDigest
 
 		// We also need the initial list of validators
 		fmt.Println()

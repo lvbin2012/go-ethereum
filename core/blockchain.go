@@ -141,6 +141,7 @@ var defaultCacheConfig = &CacheConfig{
 	TrieTimeLimit:  5 * time.Minute,
 	SnapshotLimit:  256,
 	SnapshotWait:   true,
+	Preimages:      true,
 }
 
 // BlockChain represents the canonical chain given a database with a genesis
