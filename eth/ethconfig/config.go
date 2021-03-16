@@ -224,6 +224,7 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 		config.Istanbul.ProposerPolicy = istanbul.ProposerPolicy(chainConfig.Istanbul.ProposerPolicy)
 		config.Istanbul.Ceil2Nby3Block = chainConfig.Istanbul.Ceil2Nby3Block
 		config.Istanbul.AllowedFutureBlockTime = config.Miner.AllowedFutureBlockTime
+		config.Istanbul.StakingSCAddress = chainConfig.Istanbul.StakingSCAddress
 		return istanbulBackend.New(&config.Istanbul, stack.GetNodeKey(), db)
 	}
 
