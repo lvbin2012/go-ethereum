@@ -58,9 +58,9 @@ func (w *wizard) configStakingSC(genesis *core.Genesis, validators []common.Addr
 	fmt.Println()
 	fmt.Println("Do you want to use precompile Staking Contract file? (default = yes)")
 	if usePrecompiledSc := w.readDefaultYesNo(true); usePrecompiledSc {
-		fmt.Println("Specify your ByteCode file path (default = ./consensus/istanbul/staking_contract/bin/AsDBChainStaking.bin)")
+		fmt.Println("Specify your ByteCode file path (default = ./consensus/istanbul/staking_contracts/bin/AsDBChainStaking.bin)")
 		for {
-			if tempValue, err := readFile(w.readDefaultString("./consensus/istanbul/staking_contract/bin/AsDBChainStaking.bin")); err != nil {
+			if tempValue, err := readFile(w.readDefaultString("./consensus/istanbul/staking_contracts/bin/AsDBChainStaking.bin")); err != nil {
 				log.Error("Failed to read ByteCode file", "error", err)
 			} else {
 				byteCodeString = tempValue
@@ -68,21 +68,22 @@ func (w *wizard) configStakingSC(genesis *core.Genesis, validators []common.Addr
 			}
 		}
 
-		fmt.Println("Specify your ABI path (default = ./consensus/istanbul/staking_contract/bin/AsDBChainStaking.abi)")
+		fmt.Println("Specify your ABI path (default = ./consensus/istanbul/staking_contracts/bin/AsDBChainStaking.abi)")
 		for {
-			if tempValue, err := readFile(w.readDefaultString("./consensus/istanbul/staking_contract/bin/AsDBChainStaking.abi")); err != nil {
+			if tempValue, err := readFile(w.readDefaultString("./consensus/istanbul/staking_contracts/bin/AsDBChainStaking.abi")); err != nil {
 				log.Error("Failed to read ABI file", "error", err)
 			} else {
 				if pasedABI, err := abi.JSON(strings.NewReader(tempValue)); err != nil {
 					log.Error("Failed to decode input ABI file", "error", err)
 				} else {
 					abiSC = &pasedABI
+					break
 				}
 			}
 		}
 	} else {
 		fmt.Println()
-		fmt.Println("Specify your staking smart contract path (default = ./consensus/istanbul/staking_contract/contracts/AsDBChainStaking.sol)")
+		fmt.Println("Specify your staking smart contract path (default = ./consensus/istanbul/staking_contracts/contracts/AsDBChainStaking.sol)")
 		for {
 			if scPath = w.readDefaultString("./consensus/istanbul/staking_contract/contracts/AsDBChainStaking.sol"); len(scPath) > 0 {
 				break
@@ -231,8 +232,8 @@ func (w *wizard) readStakingSCParams(genesis *core.Genesis, validators []common.
 	}
 	fmt.Println("- What is the admin address of staking SC?")
 	_admin := w.readMandatoryAddress()
-	fmt.Println("- How many blocks for epoch period? (default = 1024)")
-	_epochPeriod := w.readDefaultBigInt(big.NewInt(1024))
+	fmt.Println("- How many blocks for epoch period? (default = 30000)")
+	_epochPeriod := w.readDefaultBigInt(big.NewInt(30000))
 	_startBlock := big.NewInt(0)
 	fmt.Println("- What is the max size of validators? (max number of candidates to be selected as validators for producing blocks)")
 	_maxValidatorSize := w.readMandatoryBigInt()
