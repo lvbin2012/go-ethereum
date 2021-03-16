@@ -19,7 +19,6 @@ package backend
 import (
 	"bytes"
 	"errors"
-	"github.com/ethereum/go-ethereum/trie"
 	"math/big"
 	"math/rand"
 	"time"
@@ -31,10 +30,13 @@ import (
 	istanbulCore "github.com/ethereum/go-ethereum/consensus/istanbul/core"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/state/staking"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/trie"
 	lru "github.com/hashicorp/golang-lru"
 	"golang.org/x/crypto/sha3"
 )
@@ -346,7 +348,7 @@ func (sb *backend) VerifySeal(chain consensus.ChainHeaderReader, header *types.H
 
 // Prepare initializes the consensus fields of a block header according to the
 // rules of a particular engine. The changes are executed inline.
-func (sb *backend) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
+func (sb *backend) Prepare(chain consensus.FullChainReader, header *types.Header) error {
 	// unused fields, force to set to empty
 	header.Coinbase = common.Address{}
 	header.Nonce = emptyNonce
@@ -411,17 +413,23 @@ func (sb *backend) Prepare(chain consensus.ChainHeaderReader, header *types.Head
 //
 // Note, the block header and state database might be updated to reflect any
 // consensus rules that happen at finalization (e.g. block rewards).
-func (sb *backend) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
+func (sb *backend) Finalize(chain consensus.FullChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
 	uncles []*types.Header) {
-	// No block rewards in Istanbul, so the state remains as is and uncles are dropped
+	// Accumulate any block rewards and commit the final state root
+	if err := sb.accumulateRewards(chain, state, header); err != nil {
+		log.Error("failed to accumulateRewards", "err", err)
+	}
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = nilUncleHash
 }
 
 // FinalizeAndAssemble implements consensus.Engine, ensuring no uncles are set,
 // nor block rewards given, and returns the final block.
-func (sb *backend) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-	/// No block rewards in Istanbul, so the state remains as is and uncles are dropped
+func (sb *backend) FinalizeAndAssemble(chain consensus.FullChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
+	// Accumulate any block rewards and commit the final state root
+	if err := sb.accumulateRewards(chain, state, header); err != nil {
+		log.Error("failed to accumulateRewards", "err", err)
+	}
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = nilUncleHash
 
@@ -707,4 +715,18 @@ func writeCommittedSeals(h *types.Header, committedSeals [][]byte) error {
 
 	h.Extra = append(h.Extra[:types.IstanbulExtraVanity], payload...)
 	return nil
+}
+
+func (sb *backend) getStakingCaller(chainReader consensus.FullChainReader, stateDB *state.StateDB, header *types.Header) staking.StakingCaller {
+	if sb.config.UseEVMCaller {
+		log.Info("using the EVM caller to get validators", "number", header.Number.Uint64())
+		return staking.NewEVMStakingCaller(stateDB,
+			staking.NewChainContextWrapper(sb, chainReader.GetHeader),
+			header,
+			chainReader.Config(),
+			vm.Config{})
+	} else {
+		log.Info("using the StateDB caller to get validators", "number", header.Number.Uint64())
+		return staking.NewStateDBStakingCaller(stateDB, sb.config.IndexStateVariables)
+	}
 }
