@@ -88,6 +88,8 @@ var Defaults = Config{
 	RPCGasCap:   25000000,
 	GPO:         FullNodeGPO,
 	RPCTxFeeCap: 1, // 1 ether
+
+	Istanbul: *istanbul.DefaultConfig, // istanbul
 }
 
 func init() {

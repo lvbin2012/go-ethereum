@@ -150,6 +150,8 @@ var (
 		utils.EWASMInterpreterFlag,
 		utils.EVMInterpreterFlag,
 		utils.MinerNotifyFullFlag,
+		utils.IstanbulRequestTimeoutFlag,
+		utils.IstanbulBlockPeriodFlag,
 		configFileFlag,
 	}
 
@@ -182,7 +184,7 @@ var (
 		utils.RPCGlobalGasCapFlag,
 		utils.RPCGlobalTxFeeCapFlag,
 		utils.AllowUnprotectedTxs,
-		utils.AllowedFutureBlockTimeFlag,
+		utils.MinerTimeZoneFlag,
 	}
 
 	metricsFlags = []cli.Flag{
