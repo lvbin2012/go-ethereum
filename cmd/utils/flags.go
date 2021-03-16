@@ -467,6 +467,11 @@ var (
 		Name:  "miner.noverify",
 		Usage: "Disable remote sealing verification",
 	}
+	MinerTimeZoneFlag = cli.Uint64Flag{
+		Name:  "miner.timezone",
+		Usage: "Max time (in seconds) from current time allowed for blocks, before they're considered future blocks",
+		Value: 0,
+	}
 	// Account settings
 	UnlockedAccountFlag = cli.StringFlag{
 		Name:  "unlock",
@@ -759,11 +764,25 @@ var (
 		Name:  "catalyst",
 		Usage: "Catalyst mode (eth2 integration testing)",
 	}
+
 	AllowedFutureBlockTimeFlag = cli.Uint64Flag{
 		Name:  "allowedfutureblocktime",
 		Usage: "Max time (in seconds) from current time allowed for blocks, before they're considered future blocks",
 		Value: 0,
 	}
+
+	// Istanbul settings
+	IstanbulRequestTimeoutFlag = cli.Uint64Flag{
+		Name:  "istanbul.requesttimeout",
+		Usage: "Timeout for each Istanbul round in milliseconds",
+		Value: ethconfig.Defaults.Istanbul.RequestTimeout,
+	}
+	IstanbulBlockPeriodFlag = cli.Uint64Flag{
+		Name:  "istanbul.blockperiod",
+		Usage: "Default minimum difference between two consecutive block's timestamps in seconds",
+		Value: ethconfig.Defaults.Istanbul.BlockPeriod,
+	}
+
 )
 
 // MakeDataDir retrieves the currently requested data directory, terminating
@@ -1395,8 +1414,8 @@ func setMiner(ctx *cli.Context, cfg *miner.Config) {
 	if ctx.GlobalIsSet(MinerNoVerfiyFlag.Name) {
 		cfg.Noverify = ctx.GlobalBool(MinerNoVerfiyFlag.Name)
 	}
-	if ctx.GlobalIsSet(AllowedFutureBlockTimeFlag.Name) {
-		cfg.AllowedFutureBlockTime = ctx.GlobalUint64(AllowedFutureBlockTimeFlag.Name) //Istanbul
+	if ctx.GlobalIsSet(MinerTimeZoneFlag.Name) {
+		cfg.AllowedFutureBlockTime = ctx.GlobalUint64(MinerTimeZoneFlag.Name) //Istanbul
 	}
 }
 
@@ -1422,6 +1441,16 @@ func setWhitelist(ctx *cli.Context, cfg *ethconfig.Config) {
 		cfg.Whitelist[number] = hash
 	}
 }
+
+func setIstanbul(ctx *cli.Context, cfg *eth.Config) {
+	if ctx.GlobalIsSet(IstanbulRequestTimeoutFlag.Name) {
+		cfg.Istanbul.RequestTimeout = ctx.GlobalUint64(IstanbulRequestTimeoutFlag.Name)
+	}
+	if ctx.GlobalIsSet(IstanbulBlockPeriodFlag.Name) {
+		cfg.Istanbul.BlockPeriod = ctx.GlobalUint64(IstanbulBlockPeriodFlag.Name)
+	}
+}
+
 
 // CheckExclusive verifies that only a single instance of the provided flags was
 // set by the user. Each flag might optionally be followed by a string type to
@@ -1508,6 +1537,9 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 
 	log.Debug("Sanitizing Go's GC trigger", "percent", int(gogc))
 	godebug.SetGCPercent(int(gogc))
+
+	// Istanbul.bft
+	setIstanbul(ctx, cfg)
 
 	if ctx.GlobalIsSet(SyncModeFlag.Name) {
 		cfg.SyncMode = *GlobalTextMarshaler(ctx, SyncModeFlag.Name).(*downloader.SyncMode)
