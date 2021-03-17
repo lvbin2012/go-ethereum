@@ -19,6 +19,7 @@ package backend
 import (
 	"crypto/ecdsa"
 	"math/big"
+	"reflect"
 	"sync"
 	"time"
 
@@ -47,19 +48,26 @@ func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Databas
 	recents, _ := lru.NewARC(inmemorySnapshots)
 	recentMessages, _ := lru.NewARC(inmemoryPeers)
 	knownMessages, _ := lru.NewARC(inmemoryMessages)
+	valSetCache, _ := lru.NewARC(inMemoryValset)
 	backend := &backend{
-		config:           config,
-		istanbulEventMux: new(event.TypeMux),
-		privateKey:       privateKey,
-		address:          crypto.PubkeyToAddress(privateKey.PublicKey),
-		logger:           log.New(),
-		db:               db,
-		commitCh:         make(chan *types.Block, 1),
-		recents:          recents,
-		candidates:       make(map[common.Address]bool),
-		coreStarted:      false,
-		recentMessages:   recentMessages,
-		knownMessages:    knownMessages,
+		config:              config,
+		istanbulEventMux:    new(event.TypeMux),
+		privateKey:          privateKey,
+		address:             crypto.PubkeyToAddress(privateKey.PublicKey),
+		logger:              log.New(),
+		db:                  db,
+		commitCh:            make(chan *types.Block, 1),
+		recents:             recents,
+		candidates:          make(map[common.Address]bool),
+		coreStarted:         false,
+		recentMessages:      recentMessages,
+		knownMessages:       knownMessages,
+		computedValSetCache: valSetCache,
+	}
+	if config.StakingSCAddress == nil {
+		panic("nil staking address")
+	} else {
+		backend.stakingContractAddr = *config.StakingSCAddress
 	}
 	backend.core = istanbulCore.New(backend, backend.config)
 	return backend
@@ -75,7 +83,7 @@ type backend struct {
 	core             istanbulCore.Engine
 	logger           log.Logger
 	db               ethdb.Database
-	chain            consensus.ChainHeaderReader
+	chain            consensus.FullChainReader
 	currentBlock     func() *types.Block
 	hasBadBlock      func(hash common.Hash) bool
 	//verifyProposeBlock to send the proposal block to miner
@@ -100,6 +108,9 @@ type backend struct {
 
 	recentMessages *lru.ARCCache // the cache of peer's messages
 	knownMessages  *lru.ARCCache // the cache of self messages
+
+	stakingContractAddr common.Address // stakingContractAddr stores the address of staking smart-contract
+	computedValSetCache *lru.ARCCache  // computedValSetCache stores the valset is computed from stateDB
 }
 
 // zekun: HACK
@@ -235,6 +246,28 @@ func (sb *backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 		return time.Unix(int64(block.Header().Time), 0).Sub(now()), consensus.ErrFutureBlock
 	}
 	return 0, err
+}
+
+func (sb *backend) VerifyValidators(header *types.Header) error {
+	extra, err := types.ExtractIstanbulExtra(header)
+	if err != nil {
+		return err
+	}
+	// Check next epoch validators
+	if header.Number.Uint64()%sb.config.Epoch == 0 {
+		parent := sb.chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
+		if parent == nil {
+			return errUnknownParent
+		}
+		validators, err := sb.getNextValidatorSet(sb.chain, parent)
+		if err != nil {
+			return err
+		}
+		if !reflect.DeepEqual(validators, extra.Validators) {
+			return errMismatchValSet
+		}
+	}
+	return nil
 }
 
 // Sign implements istanbul.Backend.Sign
