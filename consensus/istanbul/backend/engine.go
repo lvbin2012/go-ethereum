@@ -85,6 +85,8 @@ var (
 	errEmptyCommittedSeals = errors.New("zero committed seals")
 	// errMismatchTxhashes is returned if the TxHash in header is mismatch.
 	errMismatchTxhashes = errors.New("mismatch transactions hashes")
+	//
+	errMisVerifyProposeBlockFunc = errors.New("miss verify propose block function")
 )
 var (
 	defaultDifficulty = big.NewInt(1)
@@ -531,7 +533,7 @@ func (sb *backend) APIs(chain consensus.ChainHeaderReader) []rpc.API {
 }
 
 // Start implements consensus.Istanbul.Start
-func (sb *backend) Start(chain consensus.ChainHeaderReader, currentBlock func() *types.Block, hasBadBlock func(hash common.Hash) bool) error {
+func (sb *backend) Start(chain consensus.ChainHeaderReader, currentBlock func() *types.Block, hasBadBlock func(hash common.Hash) bool, verifyProposeBlock func(*types.Block) error) error {
 	sb.coreMu.Lock()
 	defer sb.coreMu.Unlock()
 	if sb.coreStarted {
@@ -548,6 +550,7 @@ func (sb *backend) Start(chain consensus.ChainHeaderReader, currentBlock func() 
 	sb.chain = chain
 	sb.currentBlock = currentBlock
 	sb.hasBadBlock = hasBadBlock
+	sb.verifyProposeBlock = verifyProposeBlock
 
 	if err := sb.core.Start(); err != nil {
 		return err
@@ -568,6 +571,7 @@ func (sb *backend) Stop() error {
 		return err
 	}
 	sb.coreStarted = false
+	sb.verifyProposeBlock = nil
 	return nil
 }
 

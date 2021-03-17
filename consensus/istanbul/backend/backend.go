@@ -33,7 +33,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/trie"
 	lru "github.com/hashicorp/golang-lru"
 )
 
@@ -79,6 +78,8 @@ type backend struct {
 	chain            consensus.ChainHeaderReader
 	currentBlock     func() *types.Block
 	hasBadBlock      func(hash common.Hash) bool
+	//verifyProposeBlock to send the proposal block to miner
+	verifyProposeBlock func(*types.Block) error
 
 	// the channels for istanbul engine notifications
 	commitCh          chan *types.Block
@@ -219,15 +220,12 @@ func (sb *backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 	}
 
 	// check block body
-	txnHash := types.DeriveSha(block.Transactions(), trie.NewStackTrie(nil))
-	uncleHash := types.CalcUncleHash(block.Uncles())
-	if txnHash != block.Header().TxHash {
-		return 0, errMismatchTxhashes
+	if sb.verifyProposeBlock == nil {
+		return 0, errMisVerifyProposeBlockFunc
 	}
-	if uncleHash != nilUncleHash {
-		return 0, errInvalidUncleHash
+	if err := sb.verifyProposeBlock(block); err != nil {
+		return 0, err
 	}
-
 	// verify the header of proposed block
 	err := sb.VerifyHeader(sb.chain, block.Header(), false)
 	// ignore errEmptyCommittedSeals error because we don't have the committed seals yet
