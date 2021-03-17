@@ -85,13 +85,29 @@ func ExtractIstanbulExtra(h *Header) (*IstanbulExtra, error) {
 	return istanbulExtra, nil
 }
 
+func CheckIstanbulReward(h *Header, fees *big.Int, blockReward *big.Int) error {
+	istanbulExtra, err := ExtractIstanbulExtra(h)
+	if err != nil {
+		return err
+	}
+	reward := GetIstanbulReward(h, fees, blockReward)
+	if reward.Cmp(istanbulExtra.Reward) != 0 {
+		return errors.New("reward is not equal")
+	}
+	return nil
+}
+
+func GetIstanbulReward(h *Header, fees *big.Int, blockReward *big.Int) *big.Int {
+	return new(big.Int).Add(fees, blockReward)
+}
+
 func SetRewardIntoIstanbulExtra(h *Header, fees *big.Int, blockReward *big.Int) *Header {
 	newHeader := CopyHeader(h)
 	istanbulExtra, err := ExtractIstanbulExtra(newHeader)
 	if err != nil {
 		return nil
 	}
-	istanbulExtra.Reward = new(big.Int).Add(fees, blockReward)
+	istanbulExtra.Reward = GetIstanbulReward(h, fees, blockReward)
 	payload, err := rlp.EncodeToBytes(&istanbulExtra)
 	if err != nil {
 		return nil
