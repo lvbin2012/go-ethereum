@@ -291,6 +291,10 @@ type fakeChainReader struct {
 	config *params.ChainConfig
 }
 
+func (cr *fakeChainReader) StateAt(hash common.Hash) (*state.StateDB, error) {
+	panic("implement me")
+}
+
 // Config returns the chain configuration.
 func (cr *fakeChainReader) Config() *params.ChainConfig {
 	return cr.config

@@ -1861,7 +1861,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		}
 		// Process block using the parent state as reference point
 		substart := time.Now()
-		receipts, logs, usedGas, err := bc.processor.Process(block, statedb, bc.vmConfig)
+		receipts, logs, usedGas, fees, err := bc.processor.Process(block, statedb, bc.vmConfig)
 		if err != nil {
 			bc.reportBlock(block, receipts, err)
 			atomic.StoreUint32(&followupInterrupt, 1)
@@ -1879,6 +1879,13 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		trieproc += statedb.SnapshotStorageReads + statedb.StorageReads + statedb.StorageUpdates
 
 		blockExecutionTimer.Update(time.Since(substart) - trieproc - triehash)
+
+		// Check istanbul reward
+		if bc.chainConfig.Istanbul != nil {
+			if err := types.CheckIstanbulReward(block.Header(), fees, bc.chainConfig.Istanbul.BlockReward); err != nil {
+				return it.index, err
+			}
+		}
 
 		// Validate the state using the default validator
 		substart = time.Now()
