@@ -39,7 +39,7 @@ func (sb *backend) accumulateRewards(chainReader consensus.FullChainReader, stat
 		return err
 	}
 	transitionHeader := chainReader.GetHeaderByNumber(currentNumber - epoch)
-	snap, err := sb.snapshot(chainReader, currentNumber, header.ParentHash, nil)
+	snap, err := sb.snapshot(chainReader, currentNumber-1, header.ParentHash, nil)
 	if err != nil {
 		return err
 	}
