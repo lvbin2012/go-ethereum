@@ -40,6 +40,7 @@ type Config struct {
 	StakingSCAddress       *common.Address `toml:",omitempty"`
 	UseEVMCaller           bool
 	IndexStateVariables    *staking.IndexConfigs
+	BlockReward            *big.Int
 }
 
 var DefaultConfig = &Config{

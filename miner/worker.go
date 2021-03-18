@@ -293,7 +293,7 @@ func (w *worker) pendingBlock() *types.Block {
 func (w *worker) start() {
 	atomic.StoreInt32(&w.running, 1)
 	if istanbul, ok := w.engine.(consensus.Istanbul); ok {
-		istanbul.Start(w.chain, w.chain.CurrentBlock, w.chain.HasBadBlock, w.VerifyProposeBlock)
+		istanbul.Start(w.chain, w.chain.CurrentBlock, w.chain.HasBadBlock)
 	}
 	w.startCh <- struct{}{}
 }
@@ -1071,41 +1071,4 @@ func totalFees(block *types.Block, receipts []*types.Receipt) *big.Float {
 		feesWei.Add(feesWei, new(big.Int).Mul(new(big.Int).SetUint64(receipts[i].GasUsed), tx.GasPrice()))
 	}
 	return new(big.Float).Quo(new(big.Float).SetInt(feesWei), new(big.Float).SetInt(big.NewInt(params.Ether)))
-}
-
-// VerifyProposeBlock  verify block in propose
-// check if pending root, receipts and usedGas matched with block header
-func (w *worker) VerifyProposeBlock(block *types.Block) error {
-
-	if w.chainConfig.Istanbul == nil {
-		return errors.New("chainConfig.Istanbul is nil")
-	}
-	txnHash := types.DeriveSha(block.Transactions(), trie.NewStackTrie(nil))
-	uncleHash := types.CalcUncleHash(block.Uncles())
-	if txnHash != block.Header().TxHash {
-		return errors.New("mismatch transactions hashes")
-	}
-	if uncleHash != nilUncleHash {
-		return errors.New("non empty uncle hash")
-	}
-	parent := w.chain.GetHeader(block.ParentHash(), block.NumberU64()-1)
-	if parent == nil {
-		return errors.New("unknown block")
-	}
-	stateDB, err := w.chain.StateAt(parent.Root)
-	if err != nil {
-		return err
-	}
-	receipts, _, usedGas, fees, err := w.chain.Processor().Process(block, stateDB, *w.chain.GetVMConfig())
-	if err != nil {
-		return err
-	}
-	if err := w.chain.Validator().ValidateState(block, stateDB, receipts, usedGas); err != nil {
-		return err
-	}
-
-	if err := types.CheckIstanbulReward(block.Header(), fees, w.chainConfig.Istanbul.BlockReward); err != nil {
-		return err
-	}
-	return nil
 }
