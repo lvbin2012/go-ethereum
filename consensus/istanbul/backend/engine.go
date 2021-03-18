@@ -581,10 +581,10 @@ func (sb *backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 	lastEpoch := (number / sb.config.Epoch) * sb.config.Epoch
 	lastEpochHeader := chain.GetHeaderByNumber(lastEpoch)
 	if s, ok := sb.recents.Get(lastEpochHeader.Hash()); ok {
+		log.Trace("Loaded voting snapshot form recents", "number", number, "hash", hash)
 		return s.(*Snapshot), nil
 	}
-
-	if s, err := loadSnapshot(sb.config.Epoch, sb.db, hash); err == nil {
+	if s, err := loadSnapshot(sb.config.Epoch, sb.db, lastEpochHeader.Hash()); err == nil {
 		log.Trace("Loaded voting snapshot form disk", "number", number, "hash", hash)
 		return s, nil
 	}
@@ -597,11 +597,12 @@ func (sb *backend) snapshot(chain consensus.ChainHeaderReader, number uint64, ha
 		return nil, err
 	}
 	snap := newSnapshot(sb.config.Epoch, lastEpoch, lastEpochHeader.Hash(), validator.NewSet(istanbulExtra.Validators, sb.config.ProposerPolicy))
+	sb.recents.Add(snap.Hash, snap)
 	if err := snap.store(sb.db); err != nil {
+		panic(err)
 		return nil, err
 	}
 	return snap, nil
-
 }
 
 // FIXME: Need to update this for Istanbul
