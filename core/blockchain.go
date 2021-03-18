@@ -1883,6 +1883,8 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		// Check istanbul reward
 		if bc.chainConfig.Istanbul != nil {
 			if err := types.CheckIstanbulReward(block.Header(), fees, bc.chainConfig.Istanbul.BlockReward); err != nil {
+				bc.reportBlock(block, receipts, err)
+				atomic.StoreUint32(&followupInterrupt, 1)
 				return it.index, err
 			}
 		}
