@@ -346,7 +346,7 @@ func (sb *backend) getNextValidatorSet(chainReader consensus.FullChainReader, he
 		return nil, err
 	}
 	sb.computedValSetCache.Add(header.Number.Uint64(), validators)
-	log.Info("found new val set", "number", header.Number.Uint64(),
+	log.Debug("found new val set", "number", header.Number.Uint64(),
 		"valset", common.PrettyAddresses(validators))
 	return validators, nil
 
@@ -535,6 +535,10 @@ func (sb *backend) APIs(chain consensus.ChainHeaderReader) []rpc.API {
 	}}
 }
 
+func (sb *backend) SetChain(chain consensus.FullChainReader) {
+	sb.chain = chain
+}
+
 // Start implements consensus.Istanbul.Start
 func (sb *backend) Start(chain consensus.FullChainReader, currentBlock func() *types.Block, hasBadBlock func(hash common.Hash) bool) error {
 	sb.coreMu.Lock()
@@ -580,6 +584,9 @@ func (sb *backend) Stop() error {
 func (sb *backend) snapshot(chain consensus.ChainHeaderReader, number uint64, hash common.Hash, parents []*types.Header) (*Snapshot, error) {
 	lastEpoch := (number / sb.config.Epoch) * sb.config.Epoch
 	lastEpochHeader := chain.GetHeaderByNumber(lastEpoch)
+	if lastEpochHeader == nil {
+		return nil, errUnknownParent
+	}
 	if s, ok := sb.recents.Get(lastEpochHeader.Hash()); ok {
 		log.Trace("Loaded voting snapshot form recents", "number", number, "hash", hash)
 		return s.(*Snapshot), nil
@@ -725,14 +732,14 @@ func writeCommittedSeals(h *types.Header, committedSeals [][]byte) error {
 
 func (sb *backend) getStakingCaller(chainReader consensus.ChainHeaderReader, stateDB *state.StateDB, header *types.Header) staking.StakingCaller {
 	if sb.config.UseEVMCaller {
-		log.Info("using the EVM caller to get validators", "number", header.Number.Uint64())
+		log.Debug("using the EVM caller to get validators", "number", header.Number.Uint64())
 		return staking.NewEVMStakingCaller(stateDB,
 			staking.NewChainContextWrapper(sb, chainReader.GetHeader),
 			header,
 			chainReader.Config(),
 			vm.Config{})
 	} else {
-		log.Info("using the StateDB caller to get validators", "number", header.Number.Uint64())
+		log.Debug("using the StateDB caller to get validators", "number", header.Number.Uint64())
 		return staking.NewStateDBStakingCaller(stateDB, sb.config.IndexStateVariables)
 	}
 }
