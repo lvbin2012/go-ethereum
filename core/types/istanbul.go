@@ -92,7 +92,7 @@ func CheckIstanbulReward(h *Header, fees *big.Int, blockReward *big.Int) error {
 		return err
 	}
 	reward := GetIstanbulReward(h, fees, blockReward)
-	log.Info("SetRewardIntoIstanbulExtra", "header Number", h.Number.Uint64(), "fee", fees.Uint64(),
+	log.Debug("SetRewardIntoIstanbulExtra", "header Number", h.Number.Uint64(), "fee", fees.Uint64(),
 		"blockReward", blockReward.Uint64(), "istanbulExtra.Reward", istanbulExtra.Reward)
 	if reward.Cmp(istanbulExtra.Reward) != 0 {
 		return errors.New("reward is not equal")
@@ -105,7 +105,7 @@ func GetIstanbulReward(h *Header, fees *big.Int, blockReward *big.Int) *big.Int 
 }
 
 func SetRewardIntoIstanbulExtra(h *Header, fees *big.Int, blockReward *big.Int) *Header {
-	log.Info("SetRewardIntoIstanbulExtra", "header Number", h.Number.Uint64(), "fee", fees.Uint64(),
+	log.Debug("SetRewardIntoIstanbulExtra", "header Number", h.Number.Uint64(), "fee", fees.Uint64(),
 		"blockReward", blockReward.Uint64())
 	newHeader := CopyHeader(h)
 	istanbulExtra, err := ExtractIstanbulExtra(newHeader)
