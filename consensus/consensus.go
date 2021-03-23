@@ -168,4 +168,7 @@ type Istanbul interface {
 
 	// Stop stops the engine
 	Stop() error
+
+	// SetChain set the chain
+	SetChain(chain FullChainReader)
 }
