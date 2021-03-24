@@ -26,6 +26,8 @@ import (
 	"net"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -82,6 +84,11 @@ func Parse(validSchemes enr.IdentityScheme, input string) (*Node, error) {
 // ID returns the node identifier.
 func (n *Node) ID() ID {
 	return n.id
+}
+
+// Address returns the node's address.
+func (n *Node) Address() common.Address {
+	return crypto.PubkeyToAddress(*n.Pubkey())
 }
 
 // Seq returns the sequence number of the underlying record.

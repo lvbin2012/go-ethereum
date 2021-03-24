@@ -29,6 +29,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -197,6 +198,10 @@ type Server struct {
 
 	// State of run loop and listenLoop.
 	inboundHistory expHeap
+
+	chainReader       ethereum.P2PChainReader
+	validatorsReader  ethereum.P2PValidatorsReader
+	currentValidators map[common.Address]struct{}
 }
 
 type peerOpFunc func(map[enode.ID]*Peer)
@@ -971,6 +976,28 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 		return err
 	}
 
+	// Setup current validators
+	if err = srv.UpdateCurrentValidators(); err != nil {
+		return err
+	}
+
+	var (
+		connectedPeers               = srv.Peers()
+		_, isValidatorNode           = srv.currentValidators[srv.Address()]
+		_, isValidatorNodeConnection = srv.currentValidators[c.node.Address()]
+	)
+
+	// If you are the validator node, handle peers connection priority
+	// Handle for validator node connection
+	if len(connectedPeers) == srv.MaxPeers && isValidatorNode && isValidatorNodeConnection {
+		for _, connectedPeer := range connectedPeers {
+			if _, ok := srv.currentValidators[crypto.PubkeyToAddress(*connectedPeer.Node().Pubkey())]; !ok {
+				connectedPeer.Disconnect(DiscNonValidator)
+				break
+			}
+		}
+	}
+
 	// Run the capability negotiation handshake.
 	phs, err := c.doProtoHandshake(srv.ourHandshake)
 	if err != nil {
@@ -1118,4 +1145,39 @@ func (srv *Server) PeersInfo() []*PeerInfo {
 		}
 	}
 	return infos
+}
+
+func (srv *Server) UpdateCurrentValidators() error {
+	srv.currentValidators = make(map[common.Address]struct{})
+
+	if srv.chainReader.Config().Istanbul != nil {
+		if srv.chainReader == nil || srv.validatorsReader == nil {
+			return errors.New("p2pServer chainReader or validatorsReader is nil")
+		}
+		validators, err := srv.validatorsReader.GetValidators(srv.chainReader, srv.chainReader.CurrentHeader())
+		if err != nil {
+			return err
+		}
+
+		for _, addr := range validators {
+			srv.currentValidators[addr] = struct{}{}
+		}
+
+	}
+	return nil
+}
+
+// SetChainReader set chain info reader for P2PServer
+func (srv *Server) SetChainReader(reader ethereum.P2PChainReader) {
+	srv.chainReader = reader
+}
+
+// SetValidatorsReader set validators reader for P2PServer
+func (srv *Server) SetValidatorsReader(reader ethereum.P2PValidatorsReader) {
+	srv.validatorsReader = reader
+}
+
+// Address return  address created by P2PServer's PrivateKet
+func (srv *Server) Address() common.Address {
+	return crypto.PubkeyToAddress(srv.PrivateKey.PublicKey)
 }

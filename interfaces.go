@@ -24,6 +24,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 // NotFound is returned by API methods if the requested item does not exist.
@@ -93,6 +94,27 @@ type ChainStateReader interface {
 	StorageAt(ctx context.Context, account common.Address, key common.Hash, blockNumber *big.Int) ([]byte, error)
 	CodeAt(ctx context.Context, account common.Address, blockNumber *big.Int) ([]byte, error)
 	NonceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (uint64, error)
+}
+
+type P2PChainReader interface {
+	// Config retrieves the blockchain's chain configuration.
+	Config() *params.ChainConfig
+	// CurrentHeader retrieves the current header from the local chain.
+	CurrentHeader() *types.Header
+
+	// GetHeader retrieves a block header from the database by hash and number.
+	GetHeader(hash common.Hash, number uint64) *types.Header
+
+	// GetHeaderByNumber retrieves a block header from the database by number.
+	GetHeaderByNumber(number uint64) *types.Header
+
+	// GetHeaderByHash retrieves a block header from the database by its hash.
+	GetHeaderByHash(hash common.Hash) *types.Header
+}
+
+type P2PValidatorsReader interface {
+	// GetValidators get validators at the header
+	GetValidators(chain P2PChainReader,  header *types.Header) ([]common.Address, error)
 }
 
 // SyncProgress gives progress indications when the node is synchronising with

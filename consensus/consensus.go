@@ -20,6 +20,7 @@ package consensus
 import (
 	"math/big"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -162,7 +163,7 @@ type Handler interface {
 // Istanbul is a consensus engine to avoid byzantine failure
 type Istanbul interface {
 	Engine
-
+	ethereum.P2PValidatorsReader
 	// Start starts the engine
 	Start(chain FullChainReader, currentBlock func() *types.Block, hasBadBlock func(hash common.Hash) bool) error
 
