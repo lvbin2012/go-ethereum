@@ -20,8 +20,6 @@ package utils
 import (
 	"crypto/ecdsa"
 	"fmt"
-	"github.com/ethereum/go-ethereum/consensus/istanbul"
-	istanbulBackend "github.com/ethereum/go-ethereum/consensus/istanbul/backend"
 	"io"
 	"io/ioutil"
 	"math"
@@ -35,6 +33,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
@@ -42,6 +41,8 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	istanbulBackend "github.com/ethereum/go-ethereum/consensus/istanbul/backend"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -778,7 +779,6 @@ var (
 		Usage: "Default minimum difference between two consecutive block's timestamps in seconds",
 		Value: ethconfig.Defaults.Istanbul.BlockPeriod,
 	}
-
 )
 
 // MakeDataDir retrieves the currently requested data directory, terminating
@@ -1744,6 +1744,17 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend
 	if err != nil {
 		Fatalf("Failed to register the Ethereum service: %v", err)
 	}
+
+	if backend != nil && backend.BlockChain().Config().Istanbul != nil && backend.BlockChain() != nil &&
+		backend.Engine() != nil {
+		server := stack.Server()
+		server.SetChainReader(backend.BlockChain())
+		if istanbul, ok := backend.Engine().(ethereum.P2PValidatorsReader); ok {
+			server.SetValidatorsReader(istanbul)
+			server.UpdateCurrentValidators()
+		}
+	}
+
 	if cfg.LightServ > 0 {
 		_, err := les.NewLesServer(stack, backend, cfg)
 		if err != nil {
