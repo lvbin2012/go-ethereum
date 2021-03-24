@@ -22,6 +22,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -533,6 +534,15 @@ func (sb *backend) APIs(chain consensus.ChainHeaderReader) []rpc.API {
 		Service:   &API{chain: chain, istanbul: sb},
 		Public:    true,
 	}}
+}
+
+func (sb *backend) GetValidators(chain ethereum.P2PChainReader, header *types.Header) ([]common.Address, error) {
+	snap, err := sb.snapshot(chain, header.Number.Uint64(), header.Hash(), nil)
+	if err != nil {
+		return nil, err
+	}
+	return snap.validators(), nil
+
 }
 
 func (sb *backend) SetChain(chain consensus.FullChainReader) {

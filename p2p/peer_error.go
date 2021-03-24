@@ -70,6 +70,7 @@ const (
 	DiscSelf
 	DiscReadTimeout
 	DiscSubprotocolError = 0x10
+	DiscNonValidator     = 0x11
 )
 
 var discReasonToString = [...]string{
