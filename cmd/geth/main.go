@@ -152,6 +152,8 @@ var (
 		utils.MinerNotifyFullFlag,
 		utils.IstanbulRequestTimeoutFlag,
 		utils.IstanbulBlockPeriodFlag,
+		utils.IstanbulMinerUnlockFlag,
+		utils.IstanbulPasswordFileFlag,
 		configFileFlag,
 	}
 

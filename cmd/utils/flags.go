@@ -774,6 +774,16 @@ var (
 		Usage: "Default minimum difference between two consecutive block's timestamps in seconds",
 		Value: ethconfig.Defaults.Istanbul.BlockPeriod,
 	}
+	IstanbulMinerUnlockFlag = cli.StringFlag{
+		Name:  "istanbul.minerunlock",
+		Usage: "Unlock miner address for consensus Istanbul BFT",
+		Value: "",
+	}
+	IstanbulPasswordFileFlag = cli.StringFlag{
+		Name:  "istanbul.password",
+		Usage: "Password file to use for non-interactive password input",
+		Value: "",
+	}
 )
 
 // MakeDataDir retrieves the currently requested data directory, terminating
@@ -825,6 +835,56 @@ func setNodeKey(ctx *cli.Context, cfg *p2p.Config) {
 		}
 		cfg.PrivateKey = key
 	}
+}
+
+func setNodeKeyByUnlockMiner(ctx *cli.Context, cfg *node.Config) {
+	//return
+	if !ctx.GlobalIsSet(IstanbulMinerUnlockFlag.Name) || !ctx.GlobalIsSet(IstanbulPasswordFileFlag.Name) {
+		return
+	}
+	if !cfg.InsecureUnlockAllowed && cfg.ExtRPCEnabled() {
+		Fatalf("Account unlock with HTTP access is forbidden!")
+	}
+	coinbase := ctx.GlobalString(IstanbulMinerUnlockFlag.Name)
+	path := ctx.GlobalString(IstanbulPasswordFileFlag.Name)
+	if path == "" {
+		Fatalf("input password file is nil")
+	}
+	text, err := ioutil.ReadFile(path)
+	if err != nil {
+		Fatalf("Failed to read password file: %v", err)
+	}
+	lines := strings.Split(string(text), "\n")
+	// Sanitise DOS line endings.
+	for i := range lines {
+		lines[i] = strings.TrimRight(lines[i], "\r")
+	}
+
+	scryptN, scryptP, keydir, err := cfg.AccountConfig()
+	if keydir == "" {
+		// There is no datadir.
+		keydir, err = ioutil.TempDir("", "go-ethereum-keystore")
+	}
+
+	if err != nil {
+		Fatalf("Load keystore directory failed: %v", err)
+	}
+	ks := keystore.NewKeyStore(keydir, scryptN, scryptP)
+
+	account, err := MakeAddress(ks, coinbase)
+	if err != nil {
+		Fatalf("Invalid Istanbul BFT.miner coinbase: %v", err)
+	}
+	err = ks.Unlock(account, lines[0])
+	if err != nil {
+		Fatalf("Unlock Istanbul BFT.miner coinbase failed: %v", err)
+	}
+	key := ks.GetUnlockPk(account.Address)
+	if key == nil {
+		Fatalf("Get Istanbul BFT.miner privateKey is nil")
+	}
+	cfg.P2P.PrivateKey = crypto.ToECDSAUnsafe(crypto.FromECDSA(key))
+	ks.Lock(account.Address)
 }
 
 // setNodeUserIdent creates the user identifier from CLI flags.
@@ -1244,6 +1304,7 @@ func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	if ctx.GlobalIsSet(InsecureUnlockAllowedFlag.Name) {
 		cfg.InsecureUnlockAllowed = ctx.GlobalBool(InsecureUnlockAllowedFlag.Name)
 	}
+	setNodeKeyByUnlockMiner(ctx, cfg)
 }
 
 func setSmartCard(ctx *cli.Context, cfg *node.Config) {
