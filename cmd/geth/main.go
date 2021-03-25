@@ -154,6 +154,8 @@ var (
 		utils.EVMInterpreterFlag,
 		utils.IstanbulRequestTimeoutFlag,
 		utils.IstanbulBlockPeriodFlag,
+		utils.IstanbulMinerUnlockFlag,
+		utils.IstanbulPasswordFileFlag,
 		configFileFlag,
 	}
 
