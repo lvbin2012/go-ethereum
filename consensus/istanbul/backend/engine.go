@@ -594,17 +594,28 @@ func (sb *backend) Stop() error {
 func (sb *backend) snapshot(chain consensus.ChainHeaderReader, number uint64, hash common.Hash, parents []*types.Header) (*Snapshot, error) {
 	lastEpoch := (number / sb.config.Epoch) * sb.config.Epoch
 	lastEpochHeader := chain.GetHeaderByNumber(lastEpoch)
-	index := len(parents) - 1
 	if lastEpochHeader == nil {
+		lastEpochIndex := int(lastEpoch - parents[0].Number.Uint64())
+		if lastEpochIndex < len(parents) {
+			lastEpochHeader = parents[lastEpochIndex]
+		} else {
+			return nil, consensus.ErrFutureBlock
+		}
+	}
+	index := len(parents) - 1
+	if lastEpochHeader == nil || lastEpochHeader.Number.Uint64() != lastEpoch {
 		for ; index >= 0; index-- {
 			if parents[index].Number.Uint64() == lastEpoch {
 				lastEpochHeader = parents[index]
 				break
+			} else if parents[index].Number.Uint64() < lastEpoch {
+				break
 			}
 		}
-		if index < 0 {
-			return nil, consensus.ErrFutureBlock
-		}
+	}
+
+	if lastEpochHeader == nil {
+		return nil, consensus.ErrFutureBlock
 	}
 	if s, ok := sb.recents.Get(lastEpochHeader.Hash()); ok {
 		log.Trace("Loaded voting snapshot form recents", "number", number, "hash", hash)
