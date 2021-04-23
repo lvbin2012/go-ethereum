@@ -55,7 +55,7 @@ func (h *testEthHandler) TxPool() eth.TxPool                   { panic("no backi
 func (h *testEthHandler) AcceptTxs() bool                      { return true }
 func (h *testEthHandler) RunPeer(*eth.Peer, eth.Handler) error { panic("not used in tests") }
 func (h *testEthHandler) PeerInfo(enode.ID) interface{}        { panic("not used in tests") }
-func (h *testEthHandler) GetEngine() consensus.Engine          { panic("not used in tests") }
+func (h *testEthHandler) GetEngine() consensus.Engine          { return nil }
 
 func (h *testEthHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 	switch packet := packet.(type) {

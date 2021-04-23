@@ -1019,7 +1019,9 @@ func (w *worker) commit(uncles []*types.Header, interval func(), update bool, st
 	// Deep copy receipts here to avoid interaction between different tasks.
 	receipts := copyReceipts(w.current.receipts)
 	s := w.current.state.Copy()
-	w.current.header = types.SetRewardIntoIstanbulExtra(w.current.header, w.current.fees, w.chainConfig.Istanbul.BlockReward)
+	if w.current.header.MixDigest == types.IstanbulDigest{
+		w.current.header = types.SetRewardIntoIstanbulExtra(w.current.header, w.current.fees, w.chainConfig.Istanbul.BlockReward)
+	}
 	block, err := w.engine.FinalizeAndAssemble(w.chain, w.current.header, s, w.current.txs, uncles, receipts)
 	if err != nil {
 		return err

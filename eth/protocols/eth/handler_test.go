@@ -109,7 +109,7 @@ func (b *testBackend) AcceptTxs() bool {
 func (b *testBackend) Handle(*Peer, Packet) error {
 	panic("data processing tests should be done in the handler package")
 }
-func (b *testBackend) GetEngine() consensus.Engine { panic("not implemented") }
+func (b *testBackend) GetEngine() consensus.Engine { return nil }
 
 // Tests that block headers can be retrieved from a remote chain based on user queries.
 func TestGetBlockHeaders65(t *testing.T) { testGetBlockHeaders(t, ETH65) }
