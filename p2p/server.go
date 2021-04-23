@@ -1150,7 +1150,7 @@ func (srv *Server) PeersInfo() []*PeerInfo {
 func (srv *Server) UpdateCurrentValidators() error {
 	srv.currentValidators = make(map[common.Address]struct{})
 
-	if srv.chainReader.Config().Istanbul != nil {
+	if srv.chainReader != nil && srv.chainReader.Config().Istanbul != nil {
 		if srv.chainReader == nil || srv.validatorsReader == nil {
 			return errors.New("p2pServer chainReader or validatorsReader is nil")
 		}
