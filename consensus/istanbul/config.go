@@ -52,4 +52,5 @@ var DefaultConfig = &Config{
 	AllowedFutureBlockTime: 0,
 	UseEVMCaller:           false,
 	IndexStateVariables:    staking.DefaultConfig,
+	BlockReward: big.NewInt(5e+18),
 }

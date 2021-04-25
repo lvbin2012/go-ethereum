@@ -112,6 +112,7 @@ func appendValidators(genesis *core.Genesis, addrs []common.Address) {
 	genesis.ExtraData = genesis.ExtraData[:types.IstanbulExtraVanity]
 
 	ist := &types.IstanbulExtra{
+		Reward:        new(big.Int).SetUint64(0),
 		Validators:    addrs,
 		Seal:          []byte{},
 		CommittedSeal: [][]byte{},
@@ -150,6 +151,12 @@ func makeBlock(chain *core.BlockChain, engine *backend, parent *types.Block) *ty
 func makeBlockWithoutSeal(chain *core.BlockChain, engine *backend, parent *types.Block) *types.Block {
 	header := makeHeader(parent, engine.config)
 	engine.Prepare(chain, header)
+	if header.Number.Cmp(big.NewInt(0)) > 0 {
+		istanbulExtra, _ := types.ExtractIstanbulExtra(header)
+		istanbulExtra.Reward = big.NewInt(5e+18)
+		extra, _ := rlp.EncodeToBytes(istanbulExtra)
+		header.Extra = append(header.Extra[:types.IstanbulExtraVanity], extra...)
+	}
 	state, _ := chain.StateAt(parent.Root())
 	block, _ := engine.FinalizeAndAssemble(chain, header, state, nil, nil, nil)
 	return block
