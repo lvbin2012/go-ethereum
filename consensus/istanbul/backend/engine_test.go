@@ -41,9 +41,11 @@ import (
 // block by one node. Otherwise, if n is larger than 1, we have to generate
 // other fake events to process Istanbul.
 func newBlockChain(n int) (*core.BlockChain, *backend) {
-	genesis, nodeKeys := getGenesisAndKeys(n)
-	memDB := rawdb.NewMemoryDatabase()
 	config := istanbul.DefaultConfig
+	config.StakingSCAddress = &common.Address{}
+	genesis, nodeKeys := getGenesisAndKeys(n, config)
+	memDB := rawdb.NewMemoryDatabase()
+
 	// Use the first key as private key
 	b, _ := New(config, nodeKeys[0], memDB).(*backend)
 	genesis.MustCommit(memDB)
@@ -74,7 +76,7 @@ func newBlockChain(n int) (*core.BlockChain, *backend) {
 	return blockchain, b
 }
 
-func getGenesisAndKeys(n int) (*core.Genesis, []*ecdsa.PrivateKey) {
+func getGenesisAndKeys(n int, config *istanbul.Config) (*core.Genesis, []*ecdsa.PrivateKey) {
 	// Setup validators
 	var nodeKeys = make([]*ecdsa.PrivateKey, n)
 	var addrs = make([]common.Address, n)
@@ -87,7 +89,12 @@ func getGenesisAndKeys(n int) (*core.Genesis, []*ecdsa.PrivateKey) {
 	genesis := core.DefaultGenesisBlock()
 	genesis.Config = params.TestChainConfig
 	// force enable Istanbul engine
-	genesis.Config.Istanbul = &params.IstanbulConfig{}
+	genesis.Config.Istanbul = &params.IstanbulConfig{
+		Epoch:            config.Epoch,
+		ProposerPolicy:   uint64(config.ProposerPolicy),
+		Ceil2Nby3Block:   config.Ceil2Nby3Block,
+		BlockReward:      config.BlockReward,
+		StakingSCAddress: config.StakingSCAddress}
 	genesis.Config.Ethash = nil
 	genesis.Difficulty = defaultDifficulty
 	genesis.Nonce = emptyNonce.Uint64()
@@ -470,7 +477,7 @@ func TestPrepareExtra(t *testing.T) {
 	validators[3] = common.BytesToAddress(hexutil.MustDecode("0x8be76812f765c24641ec63dc2852b378aba2b440"))
 
 	vanity := make([]byte, types.IstanbulExtraVanity)
-	expectedResult := append(vanity, hexutil.MustDecode("0xf858f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b44080c0")...)
+	expectedResult := append(vanity, hexutil.MustDecode("0xf85980f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b44080c0")...)
 
 	h := &types.Header{
 		Extra: vanity,
@@ -481,7 +488,7 @@ func TestPrepareExtra(t *testing.T) {
 		t.Errorf("error mismatch: have %v, want: nil", err)
 	}
 	if !reflect.DeepEqual(payload, expectedResult) {
-		t.Errorf("payload mismatch: have %v, want %v", payload, expectedResult)
+		t.Errorf("payload mismatch: have %v, want %v", hexutil.Encode(payload), hexutil.Encode(expectedResult))
 	}
 
 	// append useless information to extra-data
@@ -489,15 +496,16 @@ func TestPrepareExtra(t *testing.T) {
 
 	payload, _ = prepareExtra(h, validators)
 	if !reflect.DeepEqual(payload, expectedResult) {
-		t.Errorf("payload mismatch: have %v, want %v", payload, expectedResult)
+		t.Errorf("payload mismatch: have %v, want %v", hexutil.Encode(payload), hexutil.Encode(expectedResult))
 	}
 }
 
 func TestWriteSeal(t *testing.T) {
 	vanity := bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity)
-	istRawData := hexutil.MustDecode("0xf858f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b44080c0")
+	istRawData := hexutil.MustDecode("0xf89b80f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b440b8410102030000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0")
 	expectedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
 	expectedIstExtra := &types.IstanbulExtra{
+		Reward: new(big.Int),
 		Validators: []common.Address{
 			common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f067778eaf8a")),
 			common.BytesToAddress(hexutil.MustDecode("0x294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212")),
@@ -507,6 +515,7 @@ func TestWriteSeal(t *testing.T) {
 		Seal:          expectedSeal,
 		CommittedSeal: [][]byte{},
 	}
+
 	var expectedErr error
 
 	h := &types.Header{
@@ -538,9 +547,10 @@ func TestWriteSeal(t *testing.T) {
 
 func TestWriteCommittedSeals(t *testing.T) {
 	vanity := bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity)
-	istRawData := hexutil.MustDecode("0xf858f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b44080c0")
+	istRawData := hexutil.MustDecode("0xf89d80f8549444add0ec310f115a0e603b2d7db9f067778eaf8a94294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212946beaaed781d2d2ab6350f5c4566a2c6eaac407a6948be76812f765c24641ec63dc2852b378aba2b44080f843b8410102030000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
 	expectedCommittedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
 	expectedIstExtra := &types.IstanbulExtra{
+		Reward: new(big.Int),
 		Validators: []common.Address{
 			common.BytesToAddress(hexutil.MustDecode("0x44add0ec310f115a0e603b2d7db9f067778eaf8a")),
 			common.BytesToAddress(hexutil.MustDecode("0x294fc7e8f22b3bcdcf955dd7ff3ba2ed833f8212")),
