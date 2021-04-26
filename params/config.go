@@ -368,7 +368,6 @@ type IstanbulConfig struct {
 	Ceil2Nby3Block   *big.Int         `json:"ceil2Nby3Block,omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
 	BlockReward      *big.Int         `json:"blockReward"`              // TendermintBlockReward for accumulating reward
 	StakingSCAddress *common.Address  `json:"stakingSCAddress"`         // The staking SC address for validating when deploy SC
-	FixedValidators  []common.Address `json:"fixedValidators"`
 }
 
 // String implements the stringer interface, returning the consensus engine details.
