@@ -136,11 +136,8 @@ func (w *wizard) makeGenesis() {
 			}
 		}
 		istanbulExtra := types.IstanbulExtra{Validators: validators}
-		fmt.Println()
-		fmt.Println("Do you want to use fixed validators? (default = no)")
-		if w.readDefaultYesNo(false) {
-			genesis.Config.Istanbul.FixedValidators = validators
-		} else if err := w.configStakingSC(genesis, validators); err != nil {
+
+		if err := w.configStakingSC(genesis, validators); err != nil {
 			log.Error("Failed to config staking SC", "error", err)
 			return
 		}
