@@ -201,7 +201,9 @@ type Server struct {
 
 	chainReader       ethereum.P2PChainReader
 	validatorsReader  ethereum.P2PValidatorsReader
+	muValidators      sync.Mutex
 	currentValidators map[common.Address]struct{}
+	epochBlockHash    common.Hash
 }
 
 type peerOpFunc func(map[enode.ID]*Peer)
@@ -977,6 +979,8 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 	}
 
 	// Setup current validators
+	srv.muValidators.Lock()
+	defer srv.muValidators.Unlock()
 	if err = srv.UpdateCurrentValidators(); err != nil {
 		return err
 	}
@@ -1148,17 +1152,24 @@ func (srv *Server) PeersInfo() []*PeerInfo {
 }
 
 func (srv *Server) UpdateCurrentValidators() error {
-	srv.currentValidators = make(map[common.Address]struct{})
 
-	if srv.chainReader != nil && srv.chainReader.Config().Istanbul != nil {
+	if srv.chainReader.Config().Istanbul != nil {
 		if srv.chainReader == nil || srv.validatorsReader == nil {
 			return errors.New("p2pServer chainReader or validatorsReader is nil")
 		}
+		epoch := srv.chainReader.Config().Istanbul.Epoch
+		current := srv.chainReader.CurrentHeader().Number.Uint64()
+		hash := srv.chainReader.GetHeaderByNumber((current / epoch) * epoch).Hash()
+
+		if hash == srv.epochBlockHash{
+			return nil
+		}
+		srv.currentValidators = make(map[common.Address]struct{})
+		copy(srv.epochBlockHash[:], hash[:])
 		validators, err := srv.validatorsReader.GetValidators(srv.chainReader, srv.chainReader.CurrentHeader())
 		if err != nil {
 			return err
 		}
-
 		for _, addr := range validators {
 			srv.currentValidators[addr] = struct{}{}
 		}
